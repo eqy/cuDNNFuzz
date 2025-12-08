@@ -22,7 +22,6 @@ CHECK_REF = True
 
 
 while True:
-    print("print")
     dtype = DTYPES[torch.randint(low=0, high=len(DTYPES), size=(1,)).item()]
     num_spatial_dim = SPATIAL_DIMS[torch.randint(low=0, high=len(SPATIAL_DIMS), size=(1,)).item()]
     spatial_sizes = list()
@@ -73,13 +72,13 @@ while True:
         out = torch.nn.functional.conv3d(inp, weight, stride=stride, padding=0, dilation=dilation, groups=groups)
 
     if CHECK_REF:
-        inp_ref = inp.cpu().detach().clone()
-        weight_ref = weight.cpu().detach().clone()
-        if num_spatial_dim == 2:
-            out_ref = torch.nn.functional.conv2d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
-        else:
-            out_ref = torch.nn.functional.conv3d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
-
+        inp_ref = inp.detach().clone()
+        weight_ref = weight.detach().clone()
+        with torch.backends.cudnn.flags(enabled=False):
+            if num_spatial_dim == 2:
+                out_ref = torch.nn.functional.conv2d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
+            else:
+                out_ref = torch.nn.functional.conv3d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
         try:
             torch.testing.assert_close(out_ref.to(out.device), out, atol=1., rtol=5e-2)
         except AssertionError as e:
@@ -90,4 +89,4 @@ while True:
                 raise e
 
     out.backward(torch.randn_like(out))
-    print(f"dtype {dtype} inp shape {inp.shape} weight shape {weight.shape}, groups {groups}, stride {stride}")
+    print(f"dtype {dtype} inp shape {inp.shape} weight shape {weight.shape}, groups {groups}, stride {stride}, memory_format {memory_format}")

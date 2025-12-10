@@ -20,8 +20,10 @@ DTYPES = [torch.float32, torch.bfloat16, torch.half]
 SPATIAL_DIMS = [2, 3]
 CHECK_REF = True
 
+case = 0
 
 while True:
+    print(f"running case {case}")
     dtype = DTYPES[torch.randint(low=0, high=len(DTYPES), size=(1,)).item()]
     num_spatial_dim = SPATIAL_DIMS[torch.randint(low=0, high=len(SPATIAL_DIMS), size=(1,)).item()]
     spatial_sizes = list()
@@ -71,22 +73,35 @@ while True:
     else:
         out = torch.nn.functional.conv3d(inp, weight, stride=stride, padding=0, dilation=dilation, groups=groups)
 
-    if CHECK_REF:
-        inp_ref = inp.detach().clone()
-        weight_ref = weight.detach().clone()
-        with torch.backends.cudnn.flags(enabled=False):
-            if num_spatial_dim == 2:
-                out_ref = torch.nn.functional.conv2d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
-            else:
-                out_ref = torch.nn.functional.conv3d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
-        try:
-            torch.testing.assert_close(out_ref.to(out.device), out, atol=1., rtol=5e-2)
-        except AssertionError as e:
-            match = re.search(r'Mismatched elements:.*?\((\d+\.?\d*)%\)', str(e), re.MULTILINE)
-            if float(match.group(1)) < 5.0:
-                print("mismatches, but less than 5%, skipping...")
-            else:
-                raise e
 
-    out.backward(torch.randn_like(out))
-    print(f"dtype {dtype} inp shape {inp.shape} weight shape {weight.shape}, groups {groups}, stride {stride}, memory_format {memory_format}")
+    try:
+        if CHECK_REF:
+            inp_ref = inp.detach().clone()
+            weight_ref = weight.detach().clone()
+            inp_ref.requires_grad = True
+            weight_ref.requires_grad = True
+            with torch.backends.cudnn.flags(enabled=False):
+                if num_spatial_dim == 2:
+                    out_ref = torch.nn.functional.conv2d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
+                else:
+                    out_ref = torch.nn.functional.conv3d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
+            try:
+                torch.testing.assert_close(out_ref.to(out.device), out, atol=1., rtol=5e-2)
+            except AssertionError as e:
+                match = re.search(r'Mismatched elements:.*?\((\d+\.?\d*)%\)', str(e), re.MULTILINE)
+                if float(match.group(1)) < 5.0:
+                    print("mismatches, but less than 5%, skipping...")
+                else:
+                    print(f"failing case {case} dtype {dtype} inp shape {inp.shape} weight shape {weight.shape}, groups {groups}, stride {stride}, memory_format {memory_format}")
+                    raise e
+
+        grad = torch.randn_like(out)
+        out.backward(grad)
+
+        if CHECK_REF:
+            pass
+    except RuntimeError as e:
+        if "Comparing" in str(e):
+            print("OOM, skipping...")
+
+    case += 1

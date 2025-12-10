@@ -60,8 +60,12 @@ while True:
     memory_formats = [torch.channels_last, torch.contiguous_format] if num_spatial_dim == 2 else [torch.channels_last_3d, torch.contiguous_format]
     memory_format = memory_formats[torch.randint(low=0, high=len(memory_formats), size=(1,)).item()]
 
-    inp = torch.randn(*(input_shape), dtype=dtype, device='cuda').to(memory_format=memory_format).detach().clone()
-    weight = torch.randn(*(weight_shape), dtype=dtype, device='cuda').to(memory_format=memory_format).detach().clone()
+    try:
+        inp = torch.randn(*(input_shape), dtype=dtype, device='cuda').to(memory_format=memory_format).detach().clone()
+        weight = torch.randn(*(weight_shape), dtype=dtype, device='cuda').to(memory_format=memory_format).detach().clone()
+    except torch.OutOfMemoryError as e:
+        print("OOM, skipping...")
+        continue
     inp.requires_grad = True
     weight.requires_grad = True
 

@@ -101,13 +101,12 @@ while True:
                     print("mismatches, but less than 5%, skipping...")
                 else:
                     print("ref check failed! ... checking CPU ref")
-                    inp_ref = inp.detach().clone.cpu()
-                    weight_ref = inp.deatch().clone.cpu()
+                    inp_ref = inp.detach().clone().cpu()
+                    weight_ref = inp.deatch().clone().cpu()
                     inp_ref.requires_grad = True
                     weight_ref.requires_grad = True
                     out_ref = check_ref(inp_ref, weight_ref, stride, dilation, groups)
                     print(f"failing case {case} dtype {dtype} inp shape {inp.shape} weight shape {weight.shape}, groups {groups}, stride {stride}, memory_format {memory_format}")
-                    raise e
 
         grad = torch.randn_like(out)
         out.backward(grad)

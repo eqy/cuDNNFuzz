@@ -102,7 +102,7 @@ while True:
                 else:
                     print("ref check failed! ... checking CPU ref")
                     inp_ref = inp.detach().clone().cpu()
-                    weight_ref = inp.deatch().clone().cpu()
+                    weight_ref = inp.detach().clone().cpu()
                     inp_ref.requires_grad = True
                     weight_ref.requires_grad = True
                     out_ref = check_ref(inp_ref, weight_ref, stride, dilation, groups)

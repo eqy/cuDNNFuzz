@@ -22,6 +22,14 @@ CHECK_REF = True
 
 case = 0
 
+def check_ref(inp, weight, stride, dilation, groups):
+    with torch.backends.cudnn.flags(enabled=False):
+        if len(inp) == 5:
+            out_ref = torch.nn.functional.conv2d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
+        else:
+            out_ref = torch.nn.functional.conv3d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
+    return out_ref
+
 while True:
     print(f"running case {case}")
     dtype = DTYPES[torch.randint(low=0, high=len(DTYPES), size=(1,)).item()]
@@ -84,11 +92,7 @@ while True:
             weight_ref = weight.detach().clone()
             inp_ref.requires_grad = True
             weight_ref.requires_grad = True
-            with torch.backends.cudnn.flags(enabled=False):
-                if num_spatial_dim == 2:
-                    out_ref = torch.nn.functional.conv2d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
-                else:
-                    out_ref = torch.nn.functional.conv3d(inp_ref, weight_ref, stride=stride, padding=0, dilation=dilation, groups=groups)
+            out_ref = check_ref(inp_ref, weight_ref, stride, dilation, groups)
             try:
                 torch.testing.assert_close(out_ref.to(out.device), out, atol=1., rtol=5e-2)
             except AssertionError as e:
@@ -96,6 +100,12 @@ while True:
                 if float(match.group(1)) < 5.0:
                     print("mismatches, but less than 5%, skipping...")
                 else:
+                    print("ref check failed! ... checking CPU ref")
+                    inp_ref = inp.detach().clone.cpu()
+                    weight_ref = inp.deatch().clone.cpu()
+                    inp_ref.requires_grad = True
+                    weight_ref.requires_grad = True
+                    out_ref = check_ref(inp_ref, weight_ref, stride, dilation, groups)
                     print(f"failing case {case} dtype {dtype} inp shape {inp.shape} weight shape {weight.shape}, groups {groups}, stride {stride}, memory_format {memory_format}")
                     raise e
 

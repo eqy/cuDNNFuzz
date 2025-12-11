@@ -71,20 +71,20 @@ while True:
     try:
         inp = torch.randn(*(input_shape), dtype=dtype, device='cuda').to(memory_format=memory_format).detach().clone()
         weight = torch.randn(*(weight_shape), dtype=dtype, device='cuda').to(memory_format=memory_format).detach().clone()
+        inp.requires_grad = True
+        weight.requires_grad = True
+
+        stride = torch.randint(low=1, high=MAX_STRIDE+1, size=(1,)).item()
+        dilation = torch.randint(low=1, high=MAX_DILATION+1, size=(1,)).item()
+
+        if num_spatial_dim == 2:
+            out = torch.nn.functional.conv2d(inp, weight, stride=stride, padding=0, dilation=dilation, groups=groups)
+        else:
+            out = torch.nn.functional.conv3d(inp, weight, stride=stride, padding=0, dilation=dilation, groups=groups)
+
     except torch.OutOfMemoryError as e:
         print("OOM, skipping...")
         continue
-    inp.requires_grad = True
-    weight.requires_grad = True
-
-    stride = torch.randint(low=1, high=MAX_STRIDE+1, size=(1,)).item()
-    dilation = torch.randint(low=1, high=MAX_DILATION+1, size=(1,)).item()
-
-    if num_spatial_dim == 2:
-        out = torch.nn.functional.conv2d(inp, weight, stride=stride, padding=0, dilation=dilation, groups=groups)
-    else:
-        out = torch.nn.functional.conv3d(inp, weight, stride=stride, padding=0, dilation=dilation, groups=groups)
-
 
     try:
         if CHECK_REF:
